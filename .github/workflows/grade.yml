@@ -1,11 +1,21 @@
 name: 자동 채점
 
 on:
-  - push
-  - workflow_dispatch
+  push:
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# 연달아 push 하면 이전 실행을 취소한다.
+# Private 저장소는 Actions 분이 한도(무료 조직 월 2,000분) 안에서 계산되므로
+# 중복 실행을 줄여 두는 편이 안전하다.
+concurrency:
+  group: grade-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   grade:
