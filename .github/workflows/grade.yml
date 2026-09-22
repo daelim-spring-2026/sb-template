@@ -1,0 +1,61 @@
+name: 자동 채점
+
+on:
+  - push
+  - workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 내 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # 채점 테스트는 내 저장소에 없다. 매번 최신본을 내려받는다.
+      - name: 채점 테스트 내려받기
+        uses: actions/checkout@v4
+        with:
+          repository: daelim-spring-2026/sb-grader
+          path: .grader
+
+      - name: 채점 테스트 얹기
+        run: |
+          set -e
+          for d in .grader/week*/; do
+            w=$(basename "$d")
+            mkdir -p "src/test/java/com/example/blog/grader/$w"
+            cp "$d"*.java "src/test/java/com/example/blog/grader/$w/"
+            echo "  + $w"
+          done
+
+      - name: JDK 21 준비
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+          cache: gradle
+
+      - name: 빌드
+        run: |
+          chmod +x ./gradlew
+          ./gradlew compileJava
+
+      # 채점 대상은 grader.* 만. 학생이 직접 만든 테스트는 점수에 넣지 않는다.
+      - name: 채점 테스트 실행
+        run: ./gradlew test --tests 'com.example.blog.grader.*' --continue
+        continue-on-error: true
+
+      - name: 채점 요약
+        if: always()
+        run: python3 .grader/scripts/summarize.py
+
+      - name: 채점 결과 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grade
+          path: grade.md
+          if-no-files-found: ignore

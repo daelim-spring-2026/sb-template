@@ -1,0 +1,11 @@
+build/
+.gradle/
+out/
+*.iml
+.idea/
+.DS_Store
+
+# 채점 워크플로가 만드는 것 (커밋하지 말 것)
+/.grader/
+/src/test/java/com/example/blog/grader/
+/grade.md
