@@ -9,19 +9,47 @@ permissions:
 
 jobs:
   grade:
+    # 템플릿 저장소 자체에는 학생 코드가 없다. 여기서는 채점하지 않는다.
+    if: github.repository != 'daelim-spring-2026/sb-template'
     runs-on: ubuntu-latest
     steps:
       - name: 내 코드 체크아웃
         uses: actions/checkout@v4
 
+      # 저장소를 막 만들고 아직 코드를 안 옮긴 상태를 구분한다.
+      - name: 코드가 들어왔는지 확인
+        id: check
+        run: |
+          n=$(find src/main/java -name '*.java' 2>/dev/null | wc -l | tr -d ' ')
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+          echo "자바 파일 $n 개"
+
+      - name: 안내 (아직 코드가 없을 때)
+        if: steps.check.outputs.count == '0'
+        run: |
+          {
+            echo "# 아직 채점할 코드가 없습니다"
+            echo
+            echo "지금까지 만든 블로그 프로젝트를 이 저장소로 옮기고 push 하면 자동으로 채점됩니다."
+            echo
+            echo "1. \`src/main/java/com/example/blog/\` 아래로 소스를 복사"
+            echo "2. \`src/main/resources/\` 아래로 \`application.yml\` 복사"
+            echo "3. **패키지는 \`com.example.blog\` 로 맞출 것**"
+            echo "4. commit 후 push"
+            echo
+            echo "자세한 내용은 저장소 README 를 보세요."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # 채점 테스트는 내 저장소에 없다. 매번 최신본을 내려받는다.
       - name: 채점 테스트 내려받기
+        if: steps.check.outputs.count != '0'
         uses: actions/checkout@v4
         with:
           repository: daelim-spring-2026/sb-grader
           path: .grader
 
       - name: 채점 테스트 얹기
+        if: steps.check.outputs.count != '0'
         run: |
           set -e
           for d in .grader/week*/; do
@@ -32,6 +60,7 @@ jobs:
           done
 
       - name: JDK 21 준비
+        if: steps.check.outputs.count != '0'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -39,21 +68,23 @@ jobs:
           cache: gradle
 
       - name: 빌드
+        if: steps.check.outputs.count != '0'
         run: |
           chmod +x ./gradlew
           ./gradlew compileJava
 
       # 채점 대상은 grader.* 만. 학생이 직접 만든 테스트는 점수에 넣지 않는다.
       - name: 채점 테스트 실행
+        if: steps.check.outputs.count != '0'
         run: ./gradlew test --tests 'com.example.blog.grader.*' --continue
         continue-on-error: true
 
       - name: 채점 요약
-        if: always()
+        if: steps.check.outputs.count != '0'
         run: python3 .grader/scripts/summarize.py
 
       - name: 채점 결과 보관
-        if: always()
+        if: always() && steps.check.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: grade
