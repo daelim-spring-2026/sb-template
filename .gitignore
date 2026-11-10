@@ -9,3 +9,16 @@ out/
 /.grader/
 /src/test/java/com/example/blog/grader/
 /grade.md
+
+# 비밀값 — 진짜 키는 application-local.yml 에만 넣는다 (application.yml 은 커밋, 채점에 필요)
+application-local.yml
+.env
+*.env
+*.pem
+*.key
+*.p12
+*.jks
+
+# H2 파일 DB
+*.mv.db
+*.trace.db
